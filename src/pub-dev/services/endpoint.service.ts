@@ -1,4 +1,4 @@
-import { Injectable, MethodNotAllowedException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, MethodNotAllowedException } from '@nestjs/common';
 import { Script } from 'node:vm';
 import { EndpointResponse } from '../interceptors/endpoint.interceptor';
 import { transformMethod } from '../utils';
@@ -34,6 +34,16 @@ export class EndpointService {
 		}
 	}
 
+	public cleanupEndpoint(workspace: string, path: string): void {
+		const handlers = this._evaluateModule<void>(workspace, path);
+		handlers.cleanup();
+	}
+
+	public setupEndpoint(workspace: string, path: string): void {
+		const handlers = this._evaluateModule<void>(workspace, path);
+		handlers.setup();
+	}
+
 	private _evaluateModule<T>(workspace: string, path: string): EndpointHandlers<T> {
 		return new Script(this.fsService.readFile(workspace, path)).runInNewContext(
 			{
@@ -43,8 +53,16 @@ export class EndpointService {
 						throw new Error('Module name must be a string');
 					}
 
-					if (module === 'db:nosql') {
-						return this.dbService.allocateNoSQL(workspace);
+					switch (module) {
+						case 'db:nosql': {
+							return this.dbService.allocateNoSQL(workspace);
+						}
+						case 'db:sql': {
+							return this.dbService.allocateSQL(workspace);
+						}
+						default: {
+							throw new InternalServerErrorException(`Module ${module} not found`);
+						}
 					}
 				}
 			},

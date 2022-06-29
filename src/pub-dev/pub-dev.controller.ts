@@ -78,7 +78,15 @@ export class PubDevController {
 		const workspace = await this.workspaceModel.findOne({ name });
 
 		if (this.fsService.isValidResource(workspace.name, path)) {
+			const isEndpoint = path.endsWith('.js');
+
+			if (isEndpoint) {
+				this.endpointService.cleanupEndpoint(workspace.name, path);
+			}
 			this.fsService.writeFile(workspace.name, path, file);
+			if (isEndpoint) {
+				this.endpointService.setupEndpoint(workspace.name, path);
+			}
 		}
 	}
 

@@ -1,3 +1,18 @@
+declare type Req<T> = {
+	query: Record<string, string>;
+	body: T;
+};
+
+declare type EndpointHandlers<T> = Partial<{
+	get: (req: Req<T>) => EndpointResponse;
+	post: (req: Req<T>) => EndpointResponse;
+	put: (req: Req<T>) => EndpointResponse;
+	del: (req: Req<T>) => EndpointResponse;
+	patch: (req: Req<T>) => EndpointResponse;
+	setup: () => void;
+	cleanup: () => void;
+}>;
+
 declare module 'db:nosql' {
 	type WithId<T> = T & { id: string };
 
@@ -19,12 +34,12 @@ declare module 'db:sql' {
 	type Predicate<T extends SQLRow = SQLRow> = (row: T) => boolean;
 
 	export declare class Query<T extends SQLRow, S extends Partial<T>> {
-		constructor(tables: Map<string, T[]>);
+		constructor(tables: Map<string, T[]>, selection: (keyof S)[]);
 
 		public where(predicate: Predicate<T>): Query<T, S>;
 		public from(tableName: string): Query<T, S>;
 
-		public exec(): S[] | null;
+		public exec(): S[];
 
 		static and<T extends SQLRow>(...predicates: Predicate<T>[]): Predicate<T>;
 		static or<T extends SQLRow>(...predicates: Predicate<T>[]): Predicate<T>;
@@ -50,7 +65,7 @@ declare module 'db:sql' {
 	}
 
 	export declare function select<T extends SQLRow, S extends Partial<T>>(...keys: (keyof S)[]): Query<T, S>;
-	export declare function insert<T extends SQLRow, S extends Partial<T>>(): Insertion<T, S>;
+	export declare function insert<T extends SQLRow>(): Insertion<T>;
 	export declare function create(tableName: string): db;
 	export declare function drop(tableName: string): db;
 	export declare const ALL: object;
@@ -62,18 +77,3 @@ declare module 'wss' {
 	export declare function closeServer(): void;
 	export declare function broadcast(message: string): void;
 }
-
-declare type Req<T> = {
-	query: Record<string, string>;
-	body: T;
-};
-
-declare type EndpointHandlers<T> = Partial<{
-	get: (req: Req<T>) => EndpointResponse;
-	post: (req: Req<T>) => EndpointResponse;
-	put: (req: Req<T>) => EndpointResponse;
-	del: (req: Req<T>) => EndpointResponse;
-	patch: (req: Req<T>) => EndpointResponse;
-	setup: () => void;
-	cleanup: () => void;
-}>;
