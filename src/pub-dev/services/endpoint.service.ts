@@ -36,12 +36,18 @@ export class EndpointService {
 
 	public cleanupEndpoint(workspace: string, path: string): void {
 		const handlers = this._evaluateModule<void>(workspace, path);
-		handlers.cleanup();
+
+		if (handlers.cleanup) {
+			handlers.cleanup();
+		}
 	}
 
 	public setupEndpoint(workspace: string, path: string): void {
 		const handlers = this._evaluateModule<void>(workspace, path);
-		handlers.setup();
+
+		if (handlers.setup) {
+			handlers.setup();
+		}
 	}
 
 	private _evaluateModule<T>(workspace: string, path: string): EndpointHandlers<T> {
