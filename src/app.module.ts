@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
-import { ScraperModule } from './URTWebScraper/scraper.module';
+import { PubDevModule } from './pub-dev/pub-dev.module';
 
 @Module({
-	imports: [ScraperModule],
+	imports: [PubDevModule],
 	controllers: [AppController],
 	providers: []
 })
