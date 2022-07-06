@@ -8,65 +8,52 @@ export class AppController {
 	@Get('/')
 	@Header('Content-Type', 'text/html')
 	public getServerStatus(): string {
-		return `
-			<html>
+		return `<html>
 				<head>
 					<title>Catch-All Server</title>
 					<style>
-						.up {
-							background-color: lime;
-						}
-
-						.warn {
-							background-color: yellow;
-						}
-						
-						.down {
-							background-color: red;
-						}
+						.status { color: white; padding: 0.15em 0.3em; display: inline-block }
+						.status.up { background-color: lime; }
+						.status.warn { background-color: yellow; }
+						.status.down { background-color: red; }
 					</style>
 				</head>
 				<body>
-					<h1>Main Server: <span class="up">up</span></h1>
+					<h1>Main Server: <span class="status up">up</span></h1>
 					<ul>
 						${this.statusService
 							.getServerStatuses()
 							.map(
-								([server, status]) => `
-								<li>
+								([server, status]) => `<li>
 									<h2>${server.replace('Controller', ' Server')}: ${this._toHTML(status)}</h2>
 									<ul>
 										${this.statusService
 											.getHandlerStatuses(server)
 											.map(
-												([handler, status]) => `
-												<li>
+												([handler, status]) => `<li>
 													<h3>${handler}: ${this._toHTML(status)}</h3>
-												</li>
-											`
+												</li>`
 											)
-											.join('')}
+											.join('\n')}
 									</ul>
-								</li>
-							`
+								</li>`
 							)
-							.join('')}
+							.join('\n')}
 					</ul>
 				</body>
-			</html>
-		`;
+			</html>`;
 	}
 
 	private _toHTML(status: Status): string {
 		switch (status) {
 			case 'up':
-				return '<span class="up">up</span>';
+				return '<span class="status up">up</span>';
 			case 'error':
-				return '<span class="warn">errored</span>';
+				return '<span class="status warn">errored</span>';
 			case 'down':
-				return '<span class="down">down</span>';
+				return '<span class="status down">down</span>';
 			default:
-				return '<span class="down">down</span>';
+				return `<span class="status down">unknown (${status})</span>`;
 		}
 	}
 }
