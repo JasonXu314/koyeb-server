@@ -6,8 +6,8 @@ import { Workspace } from '../schemas/workspace.schema';
 @Injectable()
 export class CookieInterceptor implements NestInterceptor {
 	intercept(context: ExecutionContext, next: CallHandler<Workspace>): Observable<Workspace> | Promise<Observable<Workspace>> {
-		const req = context.switchToHttp().getRequest() as Request,
-			res = context.switchToHttp().getResponse() as Response;
+		const req = context.switchToHttp().getRequest<Request>(),
+			res = context.switchToHttp().getResponse<Response>();
 
 		return next.handle().pipe(
 			map((workspace) => {

@@ -13,7 +13,7 @@ export class EndpointInterceptor implements NestInterceptor {
 		context: ExecutionContext,
 		next: CallHandler<string | EndpointResponse>
 	): Observable<string | EndpointResponse> | Promise<Observable<string | EndpointResponse>> {
-		const res = context.switchToHttp().getResponse() as Response;
+		const res = context.switchToHttp().getResponse<Response>();
 
 		return next.handle().pipe(
 			map((responseContent) => {
