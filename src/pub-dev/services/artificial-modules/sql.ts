@@ -37,22 +37,40 @@ class Query<T extends SQLRow, S extends Partial<T>> {
 		};
 	}
 
-	static and(...predicates) {
+	static and<T extends SQLRow>(...predicates: Predicate<T>[]) {
 		(row) => predicates.every((pred) => pred(row));
 	}
 
-	static or(...predicates) {
+	static or<T extends SQLRow>(...predicates: Predicate<T>[]) {
 		return (row) => predicates.some((pred) => pred(row));
 	}
 
-	static eq = (key, value) => (row) => row[key] === value;
-	static ne = (key, value) => (row) => row[key] !== value;
-	static gt = (key, value) => (row) => row[key] > value;
-	static ge = (key, value) => (row) => row[key] >= value;
-	static lt = (key, value) => (row) => row[key] < value;
-	static le = (key, value) => (row) => row[key] <= value;
+	static eq =
+		<T extends SQLRow, K extends keyof T>(key: K, value: T[K]) =>
+		(row: T) =>
+			row[key] === value;
+	static ne =
+		<T extends SQLRow, K extends keyof T>(key: K, value: T[K]) =>
+		(row: T) =>
+			row[key] !== value;
+	static gt =
+		<T extends SQLRow, K extends keyof T>(key: K, value: T[K]) =>
+		(row: T) =>
+			row[key] > value;
+	static ge =
+		<T extends SQLRow, K extends keyof T>(key: K, value: T[K]) =>
+		(row: T) =>
+			row[key] >= value;
+	static lt =
+		<T extends SQLRow, K extends keyof T>(key: K, value: T[K]) =>
+		(row: T) =>
+			row[key] < value;
+	static le =
+		<T extends SQLRow, K extends keyof T>(key: K, value: T[K]) =>
+		(row: T) =>
+			row[key] <= value;
 
-	static like(key, value) {
+	static like<T extends SQLRow, K extends keyof T>(key: K, value: string) {
 		if (/^%.*%$/.test(value)) {
 			return (row) => row[key].includes(value.slice(1, -1));
 		} else if (/^%.*$/.test(value)) {
