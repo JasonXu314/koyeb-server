@@ -6,6 +6,7 @@ import { Workspace, WorkspaceSchema } from './schemas/workspace.schema';
 import { EndpointDBService } from './services/endpoint-db.service';
 import { EndpointService } from './services/endpoint.service';
 import { FilesystemService } from './services/filesystem.service';
+import { WSSService } from './services/websocket-server.service';
 
 @Module({
 	controllers: [PubDevController],
@@ -17,7 +18,7 @@ import { FilesystemService } from './services/filesystem.service';
 		}),
 		MongooseModule.forFeature([{ name: Workspace.name, schema: WorkspaceSchema }])
 	],
-	providers: [WorkspaceGuard, FilesystemService, EndpointService, EndpointDBService]
+	providers: [WorkspaceGuard, FilesystemService, EndpointService, EndpointDBService, WSSService]
 })
 export class PubDevModule {}
 

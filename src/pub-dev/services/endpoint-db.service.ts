@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { NoSQLDBModule } from './dbs/nosql';
-import { SQLDBModule } from './dbs/sql';
+import { NoSQLDBModule } from './artificial-modules/nosql';
+import { SQLDBModule } from './artificial-modules/sql';
 
 @Injectable()
 export class EndpointDBService {

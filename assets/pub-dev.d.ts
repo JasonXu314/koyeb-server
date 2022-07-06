@@ -72,8 +72,9 @@ declare module 'db:sql' {
 }
 
 declare module 'wss' {
-	export declare function createServer(): void;
+	type WebSocket = import('ws').WebSocket;
+
 	export declare function hasServer(): boolean;
-	export declare function closeServer(): void;
 	export declare function broadcast(message: string): void;
+	export declare function clients(): WebSocket[];
 }
