@@ -38,11 +38,11 @@ class Query<T extends SQLRow, S extends Partial<T>> {
 	}
 
 	static and<T extends SQLRow>(...predicates: Predicate<T>[]) {
-		(row) => predicates.every((pred) => pred(row));
+		(row: T) => predicates.every((pred) => pred(row));
 	}
 
 	static or<T extends SQLRow>(...predicates: Predicate<T>[]) {
-		return (row) => predicates.some((pred) => pred(row));
+		return (row: T) => predicates.some((pred) => pred(row));
 	}
 
 	static eq =
@@ -72,13 +72,13 @@ class Query<T extends SQLRow, S extends Partial<T>> {
 
 	static like<T extends SQLRow, K extends keyof T>(key: K, value: string) {
 		if (/^%.*%$/.test(value)) {
-			return (row) => row[key].includes(value.slice(1, -1));
+			return (row: T & Record<K, string>) => row[key].includes(value.slice(1, -1));
 		} else if (/^%.*$/.test(value)) {
-			return (row) => row[key].endsWith(value.slice(1));
+			return (row: T & Record<K, string>) => row[key].endsWith(value.slice(1));
 		} else if (/^.*%$/.test(value)) {
-			return (row) => row[key].startsWith(value.slice(0, -1));
+			return (row: T & Record<K, string>) => row[key].startsWith(value.slice(0, -1));
 		} else {
-			return (row) => row[key] === value;
+			return (row: T & Record<K, string>) => row[key] === value;
 		}
 	}
 }
