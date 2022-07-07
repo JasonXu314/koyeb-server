@@ -42,7 +42,7 @@ export class FilesystemService {
 			);
 			fs.writeFileSync(
 				this.constructProjectPath(name, 'public', 'favicon.ico'),
-				fs.readFileSync(this.constructAssetPath('assets', 'pub-dev-template-project', 'public', 'favicon.ico'))
+				fs.readFileSync(this.constructAssetPath('pub-dev-template-project', 'public', 'favicon.ico'))
 			);
 		}
 	}

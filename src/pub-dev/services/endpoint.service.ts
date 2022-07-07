@@ -4,7 +4,7 @@ import * as ws from 'ws';
 import { EndpointResponse } from '../interceptors/endpoint.interceptor';
 import { transformMethod } from '../utils';
 import { EndpointDBService } from './endpoint-db.service';
-import { FilesystemService } from './filesystem.service';
+import { Directory, FilesystemService } from './filesystem.service';
 import { WSSService } from './websocket-server.service';
 
 type Req<T> = {
@@ -112,6 +112,31 @@ export class EndpointService {
 		}
 	}
 
+	public setupEndpoints(workspaces: string[]): void {
+		workspaces.forEach((workspace) => {
+			const dir = this.fsService.indexWorkspace(workspace);
+			const routesDir = dir.dirs.find((d) => d.name === 'routes');
+
+			if (routesDir) {
+				this._setupEndpoints(workspace, routesDir, []);
+			}
+		});
+	}
+
+	private _setupEndpoints(workspace: string, dir: Directory, prevPath: string[]): void {
+		dir.files.forEach((file) => {
+			if (file.endsWith('.js')) {
+				try {
+					this.setupEndpoint(workspace, prevPath.concat(file).join('/'));
+				} catch (_) {}
+			}
+		});
+
+		dir.dirs.forEach((subDir) => {
+			this._setupEndpoints(workspace, subDir, prevPath.concat(subDir.name));
+		});
+	}
+
 	private _evaluateAPIEndpoint<T>(workspace: string, path: string, method: string, query: Record<string, string>, body: T): EndpointResponse {
 		const module = this._evaluateModule<T>(workspace, path);
 
@@ -130,6 +155,9 @@ export class EndpointService {
 		return new Script(this.fsService.readRoute(workspace, path)).runInNewContext(
 			{
 				module: {},
+				Number,
+				String,
+				Boolean,
 				require: (module: string) => {
 					if (typeof module !== 'string') {
 						throw new Error('Module name must be a string');

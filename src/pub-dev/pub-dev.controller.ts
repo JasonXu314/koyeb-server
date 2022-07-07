@@ -1,4 +1,19 @@
-import { All, Body, Controller, Get, Header, Param, Patch, Query, StreamableFile, UnauthorizedException, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+	All,
+	Body,
+	Controller,
+	Get,
+	Header,
+	InternalServerErrorException,
+	OnModuleInit,
+	Param,
+	Patch,
+	Query,
+	StreamableFile,
+	UnauthorizedException,
+	UseGuards,
+	UseInterceptors
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
@@ -13,7 +28,7 @@ import { EndpointService } from './services/endpoint.service';
 import { Directory, FilesystemService } from './services/filesystem.service';
 
 @Controller('/pub-dev')
-export class PubDevController {
+export class PubDevController implements OnModuleInit {
 	constructor(
 		@InjectModel(Workspace.name) private workspaceModel: Model<WorkspaceDocument>,
 		private fsService: FilesystemService,
@@ -65,17 +80,31 @@ export class PubDevController {
 	@UseGuards(WorkspaceGuard)
 	public async updateWorkspaceFile(@Param('name') name: string, @Param('0') path: string, @Body('file') file: string): Promise<void> {
 		const workspace = await this.workspaceModel.findOne({ name });
+		let cleanupError = null,
+			setupError = null;
 
 		if (this.fsService.isFile(workspace.name, path)) {
 			const isEndpoint = path.endsWith('.js');
 
 			if (isEndpoint) {
-				this.endpointService.cleanupEndpoint(workspace.name, path);
+				try {
+					this.endpointService.cleanupEndpoint(workspace.name, path.replace('routes/', ''));
+				} catch (e) {
+					cleanupError = e;
+				}
 			}
 			this.fsService.writeFile(workspace.name, path, file);
 			if (isEndpoint) {
-				this.endpointService.setupEndpoint(workspace.name, path);
+				try {
+					this.endpointService.setupEndpoint(workspace.name, path.replace('routes/', ''));
+				} catch (e) {
+					setupError = e;
+				}
 			}
+		}
+
+		if (cleanupError || setupError) {
+			throw new InternalServerErrorException({ errors: [cleanupError, setupError].filter((e) => !!e) });
 		}
 	}
 
@@ -107,5 +136,8 @@ export class PubDevController {
 	): Promise<string | EndpointResponse | StreamableFile> {
 		return this.endpointService.evaluateRequest<T>(workspace, path, method, query, body);
 	}
-}
 
+	public async onModuleInit(): Promise<void> {
+		this.endpointService.setupEndpoints(await this.workspaceModel.find().then((workspaces) => workspaces.map((workspace) => workspace.name)));
+	}
+}

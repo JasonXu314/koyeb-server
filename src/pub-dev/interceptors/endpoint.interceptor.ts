@@ -5,7 +5,7 @@ import { map, Observable } from 'rxjs';
 export type EndpointResponse = {
 	status: number;
 	data: any;
-	headers: Record<string, string>;
+	headers?: Record<string, string>;
 };
 
 @Injectable()
@@ -27,8 +27,10 @@ export class EndpointInterceptor implements NestInterceptor {
 				} else {
 					res.status(responseContent.status).header('Content-Type', 'application/json');
 
-					for (const [key, value] of Object.entries(responseContent.headers)) {
-						res.header(key, value);
+					if (responseContent.headers) {
+						for (const [key, value] of Object.entries(responseContent.headers)) {
+							res.header(key, value);
+						}
 					}
 
 					return responseContent.data;

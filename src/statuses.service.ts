@@ -1,4 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { PubDevController } from './pub-dev/pub-dev.controller';
 
 export type Status = 'up' | 'error' | 'down';
@@ -8,7 +9,7 @@ export class StatusService implements OnModuleInit {
 	private _serverStatuses: Map<string, Status> = new Map();
 	private _handlerStatuses: Map<string, Map<string, Status>> = new Map();
 
-	constructor() {}
+	constructor(private reflector: Reflector) {}
 
 	public getServerStatus(server: string): Status {
 		return this._serverStatuses.get(server);
@@ -60,6 +61,13 @@ export class StatusService implements OnModuleInit {
 
 	public onModuleInit() {
 		this._serverStatuses.set('PubDevController', 'up');
-		this._handlerStatuses.set('PubDevController', new Map(Object.getOwnPropertyNames(PubDevController.prototype).map((method) => [method, 'up'])));
+		this._handlerStatuses.set(
+			'PubDevController',
+			new Map(
+				Object.getOwnPropertyNames(PubDevController.prototype)
+					.filter((method) => this.reflector.get('method', PubDevController.prototype[method]) !== undefined)
+					.map((method) => [method, 'up'])
+			)
+		);
 	}
 }

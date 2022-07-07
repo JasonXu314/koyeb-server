@@ -31,32 +31,41 @@ declare module 'db:nosql' {
 declare module 'db:sql' {
 	type db = typeof import('db:sql');
 	type SQLRow = { [key: string]: string | number | boolean | null };
+	type Schema<T extends SQLRow = SQLRow> = {
+		[K in keyof T]: T[K] extends boolean
+			? typeof Boolean
+			: T[K] extends string
+			? typeof String
+			: T[K] extends number
+			? typeof Number | typeof PrimaryKey
+			: never;
+	};
 	type Predicate<T extends SQLRow = SQLRow> = (row: T) => boolean;
 
 	export declare class Query<T extends SQLRow, S extends Partial<T>> {
-		constructor(tables: Map<string, T[]>, selection: (keyof S)[]);
+		constructor(tables: Map<string, T[]>, schemas: Map<string, Schema<T>>, selection: (keyof S)[]);
 
 		public where(predicate: Predicate<T>): Query<T, S>;
 		public from(tableName: string): Query<T, S>;
 
 		public exec(): S[];
 
-		static and<T extends SQLRow>(...predicates: Predicate<T>[]): Predicate<T>;
-		static or<T extends SQLRow>(...predicates: Predicate<T>[]): Predicate<T>;
+		public static and<T extends SQLRow>(...predicates: Predicate<T>[]): Predicate<T>;
+		public static or<T extends SQLRow>(...predicates: Predicate<T>[]): Predicate<T>;
 
-		static eq<T extends SQLRow, K extends keyof T>(key: K, value: T[K]): Predicate<T>;
-		static ne<T extends SQLRow, K extends keyof T>(key: K, value: T[K]): Predicate<T>;
-		static gt<T extends SQLRow, K extends keyof T>(key: K, value: T[K]): Predicate<T>;
-		static ge<T extends SQLRow, K extends keyof T>(key: K, value: T[K]): Predicate<T>;
-		static lt<T extends SQLRow, K extends keyof T>(key: K, value: T[K]): Predicate<T>;
-		static le<T extends SQLRow, K extends keyof T>(key: K, value: T[K]): Predicate<T>;
+		public static eq<T extends SQLRow, K extends keyof T>(key: K, value: T[K]): Predicate<T>;
+		public static ne<T extends SQLRow, K extends keyof T>(key: K, value: T[K]): Predicate<T>;
+		public static gt<T extends SQLRow, K extends keyof T>(key: K, value: T[K]): Predicate<T>;
+		public static ge<T extends SQLRow, K extends keyof T>(key: K, value: T[K]): Predicate<T>;
+		public static lt<T extends SQLRow, K extends keyof T>(key: K, value: T[K]): Predicate<T>;
+		public static le<T extends SQLRow, K extends keyof T>(key: K, value: T[K]): Predicate<T>;
 
-		static between<T extends SQLRow, K extends keyof T>(key: K, low: number, high: number): Predicate<T>;
-		static like<T extends SQLRow, K extends keyof T>(key: K, value: string): Predicate<T>;
+		public static between<T extends SQLRow, K extends keyof T>(key: K, low: number, high: number): Predicate<T>;
+		public static like<T extends SQLRow, K extends keyof T>(key: K, value: string): Predicate<T>;
 	}
 
 	export declare class Insertion<T extends SQLRow> {
-		constructor(tables: Map<string, T[]>);
+		constructor(tables: Map<string, T[]>, schemas: Map<string, Schema<T>>);
 
 		public into(tableName: string): Insertion<T>;
 		public values(values: T): Insertion<T>;
@@ -65,13 +74,14 @@ declare module 'db:sql' {
 	}
 
 	export declare const ALL: object;
+	export declare const PrimaryKey: object;
 
 	export declare function select<T extends SQLRow, S extends Partial<T>>(...keys: (keyof S)[]): Query<T, S>;
 	export declare function insert<T extends SQLRow>(): Insertion<T>;
-	export declare function create(tableName: string): db;
+	export declare function create<T extends SQLRow>(tableName: string, schema: T): db;
 	export declare function drop(tableName: string): db;
 
-	export declare function schema<T extends SQLRow>(obj: T): T;
+	export declare function schema<T extends SQLRow>(obj: Schema<T>): Schema<T>;
 }
 
 declare module 'wss' {
