@@ -127,11 +127,12 @@ export class SQLDBModule {
 
 	public readonly select: <T extends SQLRow, S extends Partial<T>>(...keys: (keyof S | typeof SQLDBModule.ALL)[]) => Query<T, S>;
 	public readonly insert: <T extends SQLRow>() => Insertion<T>;
-	public readonly create: (tableName: string) => this;
+	public readonly create: (tableName: string, schema: any) => this;
 	public readonly drop: (tableName: string) => this;
 
 	constructor() {
-		const tables = new Map();
+		const tables = new Map(),
+			schemas = new Map();
 
 		this.select = (...keys) => {
 			return new Query(tables, keys);
@@ -141,9 +142,10 @@ export class SQLDBModule {
 			return new Insertion(tables);
 		};
 
-		this.create = (tableName) => {
+		this.create = (tableName, schema) => {
 			if (!tables.has(tableName)) {
 				tables.set(tableName, []);
+				schemas.set(tableName, schema);
 			}
 
 			return this;
@@ -152,6 +154,7 @@ export class SQLDBModule {
 		this.drop = (tableName) => {
 			if (tables.has(tableName)) {
 				tables.delete(tableName);
+				schemas.delete(tableName);
 			}
 
 			return this;

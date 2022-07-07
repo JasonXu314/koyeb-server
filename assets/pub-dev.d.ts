@@ -64,11 +64,14 @@ declare module 'db:sql' {
 		public exec(): T;
 	}
 
+	export declare const ALL: object;
+
 	export declare function select<T extends SQLRow, S extends Partial<T>>(...keys: (keyof S)[]): Query<T, S>;
 	export declare function insert<T extends SQLRow>(): Insertion<T>;
 	export declare function create(tableName: string): db;
 	export declare function drop(tableName: string): db;
-	export declare const ALL: object;
+
+	export declare function schema<T extends SQLRow>(obj: T): T;
 }
 
 declare module 'wss' {
