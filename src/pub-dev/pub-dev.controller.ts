@@ -27,7 +27,9 @@ import { Workspace, WorkspaceDocument } from './schemas/workspace.schema';
 import { EndpointService } from './services/endpoint.service';
 import { Directory, FilesystemService } from './services/filesystem.service';
 
-@Controller('/pub-dev')
+@Controller({
+	host: `pub-dev.${process.env.LOCATION}`
+})
 export class PubDevController implements OnModuleInit {
 	constructor(
 		@InjectModel(Workspace.name) private workspaceModel: Model<WorkspaceDocument>,
