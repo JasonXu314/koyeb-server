@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { config } from 'dotenv';
 import { AppController } from './app.controller';
 import { PubDevModule } from './pub-dev/pub-dev.module';
-import { StatusService } from './statuses.service';
+import { StatusService } from './statuses/statuses.service';
 
 beforeAll(() => {
 	config({ path: './.env' });

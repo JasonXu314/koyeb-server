@@ -1,13 +1,18 @@
-import { Controller, Get, Header } from '@nestjs/common';
-import { Status, StatusService } from './statuses.service';
+import { Controller, Get, Header, Inject, Request } from '@nestjs/common';
+import { Request as Req } from 'express';
+import { Status, StatusService } from './statuses/statuses.service';
 
-@Controller()
+@Controller({
+	host: process.env.LOCATION
+})
 export class AppController {
-	constructor(private statusService: StatusService) {}
+	constructor(@Inject('StatusService') private statusService: StatusService) {}
 
 	@Get('/')
 	@Header('Content-Type', 'text/html')
-	public getServerStatus(): string {
+	public getServerStatus(@Request() req: Req): string {
+		console.log(req.hostname);
+
 		return `<html>
 				<head>
 					<title>Catch-All Server</title>

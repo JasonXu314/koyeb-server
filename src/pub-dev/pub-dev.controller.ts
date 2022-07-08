@@ -1,5 +1,5 @@
 import {
-	All,
+	BadRequestException,
 	Body,
 	Controller,
 	Get,
@@ -8,8 +8,7 @@ import {
 	OnModuleInit,
 	Param,
 	Patch,
-	Query,
-	StreamableFile,
+	Post,
 	UnauthorizedException,
 	UseGuards,
 	UseInterceptors
@@ -18,11 +17,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import { Model } from 'mongoose';
-import { Method } from './decorators/method.decorator';
+import { StatusInterceptor } from 'src/statuses/status.interceptor';
 import { Token } from './decorators/token.decorator';
 import { WorkspaceGuard } from './guards/workspace.guard';
 import { CookieInterceptor } from './interceptors/cookies.interceptor';
-import { EndpointInterceptor, EndpointResponse } from './interceptors/endpoint.interceptor';
 import { Workspace, WorkspaceDocument } from './schemas/workspace.schema';
 import { EndpointService } from './services/endpoint.service';
 import { Directory, FilesystemService } from './services/filesystem.service';
@@ -30,6 +28,7 @@ import { Directory, FilesystemService } from './services/filesystem.service';
 @Controller({
 	host: `pub-dev.${process.env.LOCATION}`
 })
+@UseInterceptors(StatusInterceptor)
 export class PubDevController implements OnModuleInit {
 	constructor(
 		@InjectModel(Workspace.name) private workspaceModel: Model<WorkspaceDocument>,
@@ -52,6 +51,18 @@ export class PubDevController implements OnModuleInit {
 					throw new UnauthorizedException('Incorrect token');
 				}
 			}
+		} else {
+			return this.createWorkspace(name);
+		}
+	}
+
+	@Post('/workspace/:name')
+	@UseInterceptors(CookieInterceptor)
+	public async createWorkspace(@Param('name') name: string): Promise<Workspace> {
+		const result = await this.workspaceModel.findOne({ name });
+
+		if (result) {
+			throw new BadRequestException('Workspace already exists');
 		} else {
 			const newWorkspace = await new this.workspaceModel({ name, token: crypto.randomUUID() }).save();
 
@@ -114,29 +125,6 @@ export class PubDevController implements OnModuleInit {
 	@Header('Content-Type', 'text/plain')
 	public getTypedefs(): string {
 		return fs.readFileSync(this.fsService.constructAssetPath('pub-dev.d.ts')).toString();
-	}
-
-	@Get('/:name')
-	@UseInterceptors(EndpointInterceptor)
-	public async getProjectIndex<T>(
-		@Param('name') workspace: string,
-		@Method() method: string,
-		@Query() query: Record<string, string>,
-		@Body() body: T
-	): Promise<string | EndpointResponse | StreamableFile> {
-		return this.endpointService.evaluateRequest<T>(workspace, '', method, query, body);
-	}
-
-	@All('/:name/*')
-	@UseInterceptors(EndpointInterceptor)
-	public async getProjectEndpoint<T>(
-		@Param('name') workspace: string,
-		@Param('0') path: string,
-		@Method() method: string,
-		@Query() query: Record<string, string>,
-		@Body() body: T
-	): Promise<string | EndpointResponse | StreamableFile> {
-		return this.endpointService.evaluateRequest<T>(workspace, path, method, query, body);
 	}
 
 	public async onModuleInit(): Promise<void> {

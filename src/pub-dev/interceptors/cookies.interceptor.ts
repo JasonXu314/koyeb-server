@@ -15,7 +15,9 @@ export class CookieInterceptor implements NestInterceptor {
 					const today = new Date();
 
 					res.cookie(`token:${workspace.name}`, workspace.token, {
-						expires: new Date(today.getFullYear() + (today.getMonth() === 11 ? 1 : 0), (today.getMonth() + 1) % 12)
+						expires: new Date(today.getFullYear() + (today.getMonth() === 11 ? 1 : 0), (today.getMonth() + 1) % 12),
+						sameSite: 'none',
+						secure: true
 					});
 				}
 
