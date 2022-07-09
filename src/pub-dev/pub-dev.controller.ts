@@ -10,10 +10,12 @@ import {
 	Patch,
 	Post,
 	UnauthorizedException,
+	UploadedFile,
 	UseGuards,
 	UseInterceptors
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { FileInterceptor } from '@nestjs/platform-express';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import { Model } from 'mongoose';
@@ -91,7 +93,8 @@ export class PubDevController implements OnModuleInit {
 
 	@Patch('/workspace/:name/*')
 	@UseGuards(WorkspaceGuard)
-	public async updateWorkspaceFile(@Param('name') name: string, @Param('0') path: string, @Body('file') file: string): Promise<void> {
+	@UseInterceptors(FileInterceptor('file'))
+	public async updateWorkspaceFile(@Param('name') name: string, @Param('0') path: string, @UploadedFile() file: Express.Multer.File): Promise<void> {
 		const workspace = await this.workspaceModel.findOne({ name });
 		let cleanupError = null,
 			setupError = null;
@@ -106,7 +109,7 @@ export class PubDevController implements OnModuleInit {
 					cleanupError = e;
 				}
 			}
-			this.fsService.writeFile(workspace.name, path, file);
+			this.fsService.writeFile(workspace.name, path, file.buffer);
 			if (isEndpoint) {
 				try {
 					this.endpointService.setupEndpoint(workspace.name, path.replace('routes/', ''));
@@ -118,6 +121,34 @@ export class PubDevController implements OnModuleInit {
 
 		if (cleanupError || setupError) {
 			throw new InternalServerErrorException({ errors: [cleanupError, setupError].filter((e) => !!e) });
+		}
+	}
+
+	@Post('/workspace/:name/*')
+	@UseGuards(WorkspaceGuard)
+	@UseInterceptors(FileInterceptor('file'))
+	public async createFileOrDir(
+		@Param('name') name: string,
+		@Param('0') path: string,
+		@Body('type') type: 'file' | 'directory',
+		@UploadedFile() file: Express.Multer.File
+	): Promise<void> {
+		if (type === 'file') {
+			if (file) {
+				this.fsService.writeFile(name, path, file.buffer);
+			} else {
+				this.fsService.writeFile(name, path, '');
+			}
+
+			if (path.endsWith('.js')) {
+				try {
+					this.endpointService.setupEndpoint(name, path.replace('routes/', ''));
+				} catch (_) {}
+			}
+		} else if (type === 'directory') {
+			this.fsService.createDirectory(name, path);
+		} else {
+			throw new BadRequestException('Invalid type (must be "file" or "directory")');
 		}
 	}
 

@@ -89,6 +89,14 @@ export class FilesystemService {
 		fs.writeFileSync(fullPath, content);
 	}
 
+	public createDirectory(workspace: string, path: string): void {
+		const fullPath = this.constructProjectPath(workspace, path);
+
+		if (!fs.existsSync(fullPath)) {
+			fs.mkdirSync(fullPath);
+		}
+	}
+
 	private _getMIMEType(file: string): string {
 		if (file.endsWith('.js')) {
 			return 'application/javascript';
