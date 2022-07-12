@@ -47,10 +47,12 @@ export class FilesystemService {
 		}
 	}
 
-	public isFile(workspace: string, path: string): boolean {
-		const fullPath = this.constructProjectPath(workspace, path);
+	public exists(workspace: string, path: string): boolean {
+		return fs.existsSync(this.constructProjectPath(workspace, path));
+	}
 
-		return fs.existsSync(fullPath) && fs.statSync(fullPath).isFile();
+	public isFile(workspace: string, path: string): boolean {
+		return this.exists(workspace, path) && fs.statSync(this.constructProjectPath(workspace, path)).isFile();
 	}
 
 	public isRoute(workspace: string, path: string): boolean {

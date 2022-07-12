@@ -18,6 +18,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
+import * as JSZip from 'jszip';
 import { Model } from 'mongoose';
 import { StatusInterceptor } from 'src/statuses/status.interceptor';
 import { Token } from './decorators/token.decorator';
@@ -149,6 +150,28 @@ export class PubDevController implements OnModuleInit {
 			this.fsService.createDirectory(name, path);
 		} else {
 			throw new BadRequestException('Invalid type (must be "file" or "directory")');
+		}
+	}
+
+	@Post('/upload-files/:name/*')
+	@UseGuards(WorkspaceGuard)
+	@UseInterceptors(FileInterceptor('files'))
+	public async uploadFilesToDir(@Param('name') name: string, @Param('0') path: string, @UploadedFile() rawZip: Express.Multer.File): Promise<void> {
+		if (this.fsService.exists(name, path)) {
+			const zip = new JSZip();
+			await zip.loadAsync(rawZip.buffer);
+
+			if (Object.keys(zip.files).some((file) => file.includes('/'))) {
+				throw new BadRequestException('ZIP file should not contain folders');
+			} else {
+				await Promise.all(
+					Object.entries(zip.files).map(async ([file, data]) => {
+						this.fsService.writeFile(name, `${path}/${file}`, await data.async('nodebuffer'));
+					})
+				);
+			}
+		} else {
+			throw new BadRequestException('Directory does not exist');
 		}
 	}
 
