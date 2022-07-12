@@ -47,10 +47,12 @@ export class FilesystemService {
 		}
 	}
 
-	public isFile(workspace: string, path: string): boolean {
-		const fullPath = this.constructProjectPath(workspace, path);
+	public exists(workspace: string, path: string): boolean {
+		return fs.existsSync(this.constructProjectPath(workspace, path));
+	}
 
-		return fs.existsSync(fullPath) && fs.statSync(fullPath).isFile();
+	public isFile(workspace: string, path: string): boolean {
+		return this.exists(workspace, path) && fs.statSync(this.constructProjectPath(workspace, path)).isFile();
 	}
 
 	public isRoute(workspace: string, path: string): boolean {
@@ -87,6 +89,14 @@ export class FilesystemService {
 		const fullPath = this.constructProjectPath(workspace, path);
 
 		fs.writeFileSync(fullPath, content);
+	}
+
+	public createDirectory(workspace: string, path: string): void {
+		const fullPath = this.constructProjectPath(workspace, path);
+
+		if (!fs.existsSync(fullPath)) {
+			fs.mkdirSync(fullPath);
+		}
 	}
 
 	private _getMIMEType(file: string): string {

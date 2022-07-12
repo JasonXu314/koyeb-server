@@ -28,6 +28,7 @@
 		"cookie-parser": "^1.4.6",
 		"dotenv": "^16.0.1",
 		"eval": "^0.1.8",
+		"jszip": "^3.10.0",
 		"mongoose": "^6.4.0",
 		"reflect-metadata": "^0.1.13",
 		"rimraf": "^3.0.2",
