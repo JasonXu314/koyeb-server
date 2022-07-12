@@ -132,7 +132,7 @@ export class PubDevController implements OnModuleInit {
 		@Param('name') name: string,
 		@Param('0') path: string,
 		@Body('type') type: 'file' | 'directory',
-		@UploadedFile() file: Express.Multer.File
+		@UploadedFile() file: Express.Multer.File | undefined
 	): Promise<void> {
 		if (type === 'file') {
 			if (file) {
@@ -147,7 +147,37 @@ export class PubDevController implements OnModuleInit {
 				} catch (_) {}
 			}
 		} else if (type === 'directory') {
-			this.fsService.createDirectory(name, path);
+			if (file) {
+				this.fsService.createDirectory(name, path);
+
+				const zip = new JSZip();
+				await zip.loadAsync(file.buffer);
+
+				await Promise.all(
+					Object.entries(zip.files)
+						.filter(([, file]) => !file.dir)
+						.map(async ([file, data]) => {
+							const fullPath = `${path}/${file}`;
+
+							fullPath
+								.split('/')
+								.slice(0, -1)
+								.reduce((prevPath, dir) => {
+									const dirPath = `${prevPath}/${dir}`;
+
+									if (!this.fsService.exists(name, dirPath)) {
+										this.fsService.createDirectory(name, dirPath);
+									}
+
+									return dirPath;
+								}, '');
+
+							this.fsService.writeFile(name, fullPath, await data.async('nodebuffer'));
+						})
+				);
+			} else {
+				this.fsService.createDirectory(name, path);
+			}
 		} else {
 			throw new BadRequestException('Invalid type (must be "file" or "directory")');
 		}
