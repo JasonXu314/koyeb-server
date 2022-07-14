@@ -61,7 +61,8 @@ export class PubDevController implements OnModuleInit {
 
 	@Post('/workspace/:name')
 	@UseInterceptors(CookieInterceptor)
-	public async createWorkspace(@Param('name') name: string): Promise<Workspace> {
+	@UseInterceptors(FileInterceptor('file'))
+	public async createWorkspace(@Param('name') name: string, @UploadedFile() rawZip?: Express.Multer.File): Promise<Workspace> {
 		const result = await this.workspaceModel.findOne({ name });
 
 		if (result) {
@@ -69,9 +70,14 @@ export class PubDevController implements OnModuleInit {
 		} else {
 			const newWorkspace = await new this.workspaceModel({ name, token: crypto.randomUUID() }).save();
 
-			this.fsService.createWorkspace(newWorkspace.name);
+			try {
+				await this.fsService.createWorkspace(newWorkspace.name, rawZip);
 
-			return newWorkspace;
+				return newWorkspace;
+			} catch (e) {
+				await newWorkspace.remove();
+				throw e;
+			}
 		}
 	}
 

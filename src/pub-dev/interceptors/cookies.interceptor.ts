@@ -11,7 +11,7 @@ export class CookieInterceptor implements NestInterceptor {
 
 		return next.handle().pipe(
 			map((workspace) => {
-				if (!req.cookies[`token:${workspace.name}`]) {
+				if (req.cookies[`token:${workspace.name}`] !== workspace.token) {
 					const today = new Date();
 
 					res.cookie(`token:${workspace.name}`, workspace.token, {

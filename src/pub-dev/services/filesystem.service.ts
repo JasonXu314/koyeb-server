@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
 import * as fs from 'fs';
+import * as JSZip from 'jszip';
 
 export type Directory = {
 	name: string;
@@ -27,23 +28,40 @@ export class FilesystemService {
 		return this._readDirectory(this.constructProjectPath(workspace));
 	}
 
-	public createWorkspace(name: string): void {
+	public async createWorkspace(name: string, rawZip?: Express.Multer.File): Promise<void> {
 		if (!fs.existsSync(this.constructProjectPath(name))) {
-			fs.mkdirSync(this.constructProjectPath(name));
-			fs.mkdirSync(this.constructProjectPath(name, 'routes'));
-			fs.mkdirSync(this.constructProjectPath(name, 'public'));
+			if (rawZip) {
+				const zip = new JSZip();
+				await zip.loadAsync(rawZip.buffer);
 
-			fs.writeFileSync(
-				this.constructProjectPath(name, 'routes', 'index.html'),
-				fs
-					.readFileSync(this.constructAssetPath('pub-dev-template-project', 'routes', 'index.html'))
-					.toString()
-					.replace(/PROJECT_NAME/g, name)
-			);
-			fs.writeFileSync(
-				this.constructProjectPath(name, 'public', 'favicon.ico'),
-				fs.readFileSync(this.constructAssetPath('pub-dev-template-project', 'public', 'favicon.ico'))
-			);
+				if (Object.values(zip.files).some((file) => file.dir && file.name === `${name}/routes/`)) {
+					await this.unpack(zip, 'filesystem');
+				} else if (Object.values(zip.files).some((file) => file.dir && file.name === `routes/`)) {
+					await this.unpack(zip, this.constructProjectPath(name));
+				} else {
+					throw new BadRequestException(
+						'Your project must contain a routes directory or a directory with the same name as your project, containing a routes directory at the root level.'
+					);
+				}
+			} else {
+				fs.mkdirSync(this.constructProjectPath(name));
+				fs.mkdirSync(this.constructProjectPath(name, 'routes'));
+				fs.mkdirSync(this.constructProjectPath(name, 'public'));
+
+				fs.writeFileSync(
+					this.constructProjectPath(name, 'routes', 'index.html'),
+					fs
+						.readFileSync(this.constructAssetPath('pub-dev-template-project', 'routes', 'index.html'))
+						.toString()
+						.replace(/PROJECT_NAME/g, name)
+				);
+				fs.writeFileSync(
+					this.constructProjectPath(name, 'public', 'favicon.ico'),
+					fs.readFileSync(this.constructAssetPath('pub-dev-template-project', 'public', 'favicon.ico'))
+				);
+			}
+		} else {
+			throw new BadRequestException('Workspace already exists');
 		}
 	}
 
@@ -97,6 +115,31 @@ export class FilesystemService {
 		if (!fs.existsSync(fullPath)) {
 			fs.mkdirSync(fullPath);
 		}
+	}
+
+	public async unpack(zip: JSZip, destination: string): Promise<void> {
+		await Promise.all(
+			Object.entries(zip.files)
+				.filter(([, file]) => !file.dir)
+				.map(async ([file, data]) => {
+					const fullPath = `${destination}/${file}`;
+
+					fullPath
+						.split('/')
+						.slice(0, -1)
+						.reduce((prevPath, dir) => {
+							const dirPath = prevPath === '' ? dir : `${prevPath}/${dir}`;
+
+							if (!fs.existsSync(dirPath)) {
+								fs.mkdirSync(dirPath);
+							}
+
+							return dirPath;
+						}, '');
+
+					fs.writeFileSync(fullPath, await data.async('nodebuffer'));
+				})
+		);
 	}
 
 	private _getMIMEType(file: string): string {
