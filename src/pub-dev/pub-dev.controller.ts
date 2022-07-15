@@ -73,6 +73,8 @@ export class PubDevController implements OnModuleInit {
 			try {
 				await this.fsService.createWorkspace(newWorkspace.name, rawZip);
 
+				this.endpointService.setupEndpoints([newWorkspace.name]);
+
 				return newWorkspace;
 			} catch (e) {
 				await newWorkspace.remove();
@@ -154,33 +156,16 @@ export class PubDevController implements OnModuleInit {
 			}
 		} else if (type === 'directory') {
 			if (file) {
-				this.fsService.createDirectory(name, path);
-
 				const zip = new JSZip();
 				await zip.loadAsync(file.buffer);
 
-				await Promise.all(
-					Object.entries(zip.files)
-						.filter(([, file]) => !file.dir)
-						.map(async ([file, data]) => {
-							const fullPath = `${path}/${file}`;
-
-							fullPath
-								.split('/')
-								.slice(0, -1)
-								.reduce((prevPath, dir) => {
-									const dirPath = `${prevPath}/${dir}`;
-
-									if (!this.fsService.exists(name, dirPath)) {
-										this.fsService.createDirectory(name, dirPath);
-									}
-
-									return dirPath;
-								}, '');
-
-							this.fsService.writeFile(name, fullPath, await data.async('nodebuffer'));
-						})
-				);
+				await this.fsService.unpack(zip, path, (path) => {
+					if (path.endsWith('.js')) {
+						try {
+							this.endpointService.setupEndpoint(name, path.replace('routes/', ''));
+						} catch (_) {}
+					}
+				});
 			} else {
 				this.fsService.createDirectory(name, path);
 			}
