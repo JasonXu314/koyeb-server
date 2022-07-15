@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException, MethodNotAllowedException, NotFoundException, StreamableFile } from '@nestjs/common';
-import { Script } from 'node:vm';
+import { createContext, Script } from 'node:vm';
 import * as ws from 'ws';
 import { EndpointResponse } from '../interceptors/endpoint.interceptor';
 import { transformMethod } from '../utils';
@@ -32,6 +32,8 @@ type WSGatewayHandlers = {
 
 @Injectable()
 export class EndpointService {
+	private _executionContexts: Map<string, any> = new Map();
+
 	constructor(private fsService: FilesystemService, private dbService: EndpointDBService, private wssService: WSSService) {}
 
 	public async evaluateRequest<T>(
@@ -59,7 +61,7 @@ export class EndpointService {
 	public cleanupEndpoint(workspace: string, path: string): void {
 		const module = this._evaluateModule<void>(workspace, path);
 
-		if (EndpointService.isGateway(module)) {
+		if (module && EndpointService.isGateway(module)) {
 			const wsModule = this.wssService.getWSModule(workspace);
 
 			if (wsModule.hasServer()) {
@@ -67,7 +69,7 @@ export class EndpointService {
 			}
 		}
 
-		if (module.cleanup) {
+		if (module && module.cleanup) {
 			module.cleanup();
 		}
 	}
@@ -75,7 +77,7 @@ export class EndpointService {
 	public setupEndpoint(workspace: string, path: string): void {
 		const module = this._evaluateModule<void>(workspace, path);
 
-		if (EndpointService.isGateway(module)) {
+		if (module && EndpointService.isGateway(module)) {
 			const wsModule = this.wssService.getWSModule(workspace);
 
 			wsModule.createServer();
@@ -107,7 +109,7 @@ export class EndpointService {
 			});
 		}
 
-		if (module.setup) {
+		if (module && module.setup) {
 			module.setup();
 		}
 	}
@@ -152,37 +154,47 @@ export class EndpointService {
 	}
 
 	private _evaluateModule<T>(workspace: string, path: string): RESTEndpointHandlers<T> | WSGatewayHandlers {
-		return new Script(this.fsService.readRoute(workspace, path)).runInNewContext(
-			{
-				module: {},
-				Number,
-				String,
-				Boolean,
-				require: (module: string) => {
-					if (typeof module !== 'string') {
-						throw new Error('Module name must be a string');
+		if (!this._executionContexts.has(workspace)) {
+			this._executionContexts.set(workspace, {});
+		}
+
+		const context = this._executionContexts.get(workspace);
+
+		const ctx = createContext({
+			module: {},
+			context,
+			Number,
+			String,
+			Boolean,
+			require: (module: string) => {
+				if (typeof module !== 'string') {
+					throw new Error('Module name must be a string');
+				}
+
+				switch (module) {
+					case 'db:nosql': {
+						return this.dbService.allocateNoSQL(workspace);
 					}
+					case 'db:sql': {
+						return this.dbService.allocateSQL(workspace);
+					}
+					case 'wss': {
+						const wssModule = this.wssService.allocateWSS(workspace, path.replace('routes/', ''));
 
-					switch (module) {
-						case 'db:nosql': {
-							return this.dbService.allocateNoSQL(workspace);
-						}
-						case 'db:sql': {
-							return this.dbService.allocateSQL(workspace);
-						}
-						case 'wss': {
-							const wssModule = this.wssService.allocateWSS(workspace, path.replace('routes/', ''));
-
-							return wssModule.public();
-						}
-						default: {
-							throw new InternalServerErrorException(`Module ${module} not found`);
-						}
+						return wssModule.public();
+					}
+					default: {
+						throw new InternalServerErrorException(`Module ${module} not found`);
 					}
 				}
-			},
-			{ filename: this.fsService.constructProjectPath(workspace, path) }
-		) as RESTEndpointHandlers<T>;
+			}
+		});
+
+		new Script(this.fsService.readRoute(workspace, path)).runInContext(ctx, {
+			filename: this.fsService.constructProjectPath(workspace, path)
+		});
+
+		return ctx.module.exports;
 	}
 
 	public static isValidHandlerModule<T>(module: any): module is RESTEndpointHandlers<T> | WSGatewayHandlers {
