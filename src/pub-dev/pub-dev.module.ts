@@ -8,6 +8,7 @@ import { Workspace, WorkspaceSchema } from './schemas/workspace.schema';
 import { EndpointDBService } from './services/endpoint-db.service';
 import { EndpointService } from './services/endpoint.service';
 import { FilesystemService } from './services/filesystem.service';
+import { FSService } from './services/fs.service';
 import { WSSService } from './services/websocket-server.service';
 
 @Module({
@@ -21,6 +22,6 @@ import { WSSService } from './services/websocket-server.service';
 		MongooseModule.forFeature([{ name: Workspace.name, schema: WorkspaceSchema }]),
 		StatusesModule
 	],
-	providers: [WorkspaceGuard, FilesystemService, EndpointService, EndpointDBService, WSSService]
+	providers: [WorkspaceGuard, FilesystemService, EndpointService, EndpointDBService, WSSService, FSService]
 })
 export class PubDevModule {}

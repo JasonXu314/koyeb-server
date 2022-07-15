@@ -1,6 +1,6 @@
 import { CallHandler, ExecutionContext, Inject, Injectable, NestInterceptor } from '@nestjs/common';
 import { Response } from 'express';
-import { map, Observable } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 import { StatusService } from './statuses.service';
 
 @Injectable()
@@ -11,7 +11,7 @@ export class StatusInterceptor implements NestInterceptor {
 		const res = context.switchToHttp().getResponse<Response>();
 
 		return next.handle().pipe(
-			map((data) => {
+			tap(() => {
 				const server = context.getClass().name,
 					handler = context.getHandler().name;
 
@@ -25,8 +25,6 @@ export class StatusInterceptor implements NestInterceptor {
 				if (this.statusService.getHandlerStatus(server, handler) !== 'error') {
 					this.statusService.updateHandlerStatus(server, handler, 'up');
 				}
-
-				return data;
 			})
 		);
 	}
