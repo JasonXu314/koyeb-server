@@ -116,6 +116,7 @@ export class PubDevController implements OnModuleInit {
 					this.endpointService.cleanupEndpoint(workspace.name, path.replace('routes/', ''));
 				} catch (e) {
 					cleanupError = e;
+					console.error(e);
 				}
 			}
 			this.fsService.writeFile(workspace.name, path, file.buffer);
@@ -124,6 +125,7 @@ export class PubDevController implements OnModuleInit {
 					this.endpointService.setupEndpoint(workspace.name, path.replace('routes/', ''));
 				} catch (e) {
 					setupError = e;
+					console.error(e);
 				}
 			}
 		}
