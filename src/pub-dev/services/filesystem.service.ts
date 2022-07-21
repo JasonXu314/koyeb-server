@@ -73,6 +73,10 @@ export class FilesystemService {
 		return this.exists(workspace, path) && this.fs.stat(this.constructProjectPath(workspace, path)).isFile();
 	}
 
+	public isDirectory(workspace: string, path: string): boolean {
+		return this.exists(workspace, path) && this.fs.stat(this.constructProjectPath(workspace, path)).isDirectory();
+	}
+
 	public isRoute(workspace: string, path: string): boolean {
 		const fullPath = this.constructProjectPath(workspace, 'routes', path);
 
@@ -107,6 +111,36 @@ export class FilesystemService {
 		const fullPath = this.constructProjectPath(workspace, path);
 
 		this.fs.write(fullPath, content);
+	}
+
+	public deleteFile(workspace: string, path: string): void {
+		const fullPath = this.constructProjectPath(workspace, path);
+
+		if (this.fs.exists(fullPath) && this.fs.stat(fullPath).isFile()) {
+			this.fs.rm(fullPath);
+		} else {
+			throw new NotFoundException('File not found');
+		}
+	}
+
+	public deleteDirectory(workspace: string, path: string): void {
+		const fullPath = this.constructProjectPath(workspace, path);
+
+		if (this.fs.exists(fullPath) && this.fs.stat(fullPath).isDirectory()) {
+			this.fs.rm(fullPath, { recursive: true });
+		} else {
+			throw new NotFoundException('Directory not found');
+		}
+	}
+
+	public rename(workspace: string, path: string, newName: string): void {
+		const fullPath = this.constructProjectPath(workspace, path);
+
+		if (this.fs.exists(fullPath)) {
+			this.fs.rename(fullPath, this.constructProjectPath(workspace, path.split('/').slice(0, -1).concat(newName).join('/')));
+		} else {
+			throw new NotFoundException('File/directory not found');
+		}
 	}
 
 	public createDirectory(workspace: string, path: string): void {

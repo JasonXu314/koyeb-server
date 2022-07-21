@@ -2,6 +2,7 @@ import {
 	BadRequestException,
 	Body,
 	Controller,
+	Delete,
 	Get,
 	Header,
 	InternalServerErrorException,
@@ -9,6 +10,7 @@ import {
 	Param,
 	Patch,
 	Post,
+	Query,
 	UnauthorizedException,
 	UploadedFile,
 	UseGuards,
@@ -135,6 +137,30 @@ export class PubDevController implements OnModuleInit {
 		}
 	}
 
+	@Delete('/workspace/:name/*')
+	@UseGuards(WorkspaceGuard)
+	public async deleteWorkspaceFileOrDir(@Param('name') name: string, @Param('0') path: string, @Query('type') type: 'file' | 'directory'): Promise<void> {
+		const workspace = await this.workspaceModel.findOne({ name });
+
+		if (this.fsService.isFile(workspace.name, path) && type === 'file') {
+			const isEndpoint = path.endsWith('.js');
+
+			if (isEndpoint) {
+				try {
+					this.endpointService.cleanupEndpoint(workspace.name, path.replace('routes/', ''));
+				} catch (e) {
+					console.error(e);
+				}
+			}
+
+			this.fsService.deleteFile(workspace.name, path);
+		} else if (this.fsService.isDirectory(workspace.name, path) && type === 'directory') {
+			this.fsService.deleteDirectory(workspace.name, path);
+		} else {
+			throw new BadRequestException('Invalid path or mismatched file/directory type');
+		}
+	}
+
 	@Post('/workspace/:name/*')
 	@UseGuards(WorkspaceGuard)
 	@UseInterceptors(FileInterceptor('file'))
@@ -142,37 +168,51 @@ export class PubDevController implements OnModuleInit {
 		@Param('name') name: string,
 		@Param('0') path: string,
 		@Body('type') type: 'file' | 'directory',
-		@UploadedFile() file: Express.Multer.File | undefined
+		@Body('action') action: 'create' | 'rename' = 'create',
+		@UploadedFile() file: Express.Multer.File | undefined,
+		@Body('newName') newName?: string
 	): Promise<void> {
-		if (type === 'file') {
-			if (file) {
-				this.fsService.writeFile(name, path, file.buffer);
-			} else {
-				this.fsService.writeFile(name, path, '');
-			}
+		if (action === 'create') {
+			if (type === 'file') {
+				if (file) {
+					this.fsService.writeFile(name, path, file.buffer);
+				} else {
+					this.fsService.writeFile(name, path, '');
+				}
 
-			if (path.endsWith('.js')) {
-				try {
-					this.endpointService.setupEndpoint(name, path.replace('routes/', ''));
-				} catch (_) {}
-			}
-		} else if (type === 'directory') {
-			if (file) {
-				const zip = new JSZip();
-				await zip.loadAsync(file.buffer);
+				if (path.endsWith('.js')) {
+					try {
+						this.endpointService.setupEndpoint(name, path.replace('routes/', ''));
+					} catch (_) {}
+				}
+			} else if (type === 'directory') {
+				if (file) {
+					const zip = new JSZip();
+					await zip.loadAsync(file.buffer);
 
-				await this.fsService.unpack(zip, path, (path) => {
-					if (path.endsWith('.js')) {
-						try {
-							this.endpointService.setupEndpoint(name, path.replace('routes/', ''));
-						} catch (_) {}
-					}
-				});
+					await this.fsService.unpack(zip, path, (path) => {
+						if (path.endsWith('.js')) {
+							try {
+								this.endpointService.setupEndpoint(name, path.replace('routes/', ''));
+							} catch (_) {}
+						}
+					});
+				} else {
+					this.fsService.createDirectory(name, path);
+				}
 			} else {
-				this.fsService.createDirectory(name, path);
+				throw new BadRequestException('Invalid type (must be "file" or "directory")');
 			}
 		} else {
-			throw new BadRequestException('Invalid type (must be "file" or "directory")');
+			if (newName) {
+				if (type === 'file' || type === 'directory') {
+					this.fsService.rename(name, path, newName);
+				} else {
+					throw new BadRequestException('Invalid type (must be "file" or "directory")');
+				}
+			} else {
+				throw new BadRequestException('Missing new name');
+			}
 		}
 	}
 
