@@ -42,6 +42,14 @@ export class FSService {
 		fs.writeFileSync(this.normalize(path), content);
 	}
 
+	public rm(path: string, options?: fs.RmOptions): void {
+		fs.rmSync(this.normalize(path), options);
+	}
+
+	public rename(source: string, destination: string): void {
+		fs.renameSync(this.normalize(source), this.normalize(destination));
+	}
+
 	public exists(path: string): boolean {
 		return fs.existsSync(this.normalize(path));
 	}
