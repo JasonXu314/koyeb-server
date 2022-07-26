@@ -256,6 +256,62 @@ class Insertion<T extends SQLRow> {
 	}
 }
 
+class Update<T extends SQLRow> {
+	public readonly set: <K extends string>(column: K, value: T[K]) => Update<T>;
+	public readonly where: (predicate: Predicate<T>) => Update<T>;
+	public readonly exec: () => T[];
+
+	constructor(tables: Map<string, T[]>, schemas: Map<string, Schema<T>>, tableName: string) {
+		const table = tables.get(tableName),
+			schema = schemas.get(tableName);
+		let wherePredicate: Predicate<T> = () => true;
+		let updateColumn: string | null = null,
+			updateValue: T[keyof T] | null = null;
+
+		if (!table) {
+			throw new InternalServerErrorException(`Table ${tableName} does not exist`);
+		}
+
+		this.where = (pred) => {
+			wherePredicate = pred;
+			return this;
+		};
+
+		this.set = <K extends string>(column: K, value: T[K]) => {
+			updateColumn = column;
+			updateValue = value;
+			return this;
+		};
+
+		this.exec = () => {
+			if (updateColumn === null) {
+				throw new InternalServerErrorException('No column specified');
+			}
+			if (updateValue === null) {
+				throw new InternalServerErrorException('No value specified');
+			}
+			if (!schema) {
+				throw new InternalServerErrorException(`Table ${tableName} does not exist`);
+			}
+
+			const updates = [],
+				updatedTable = table!.map((row) => {
+					const newRow = { ...row };
+
+					if (wherePredicate(row)) {
+						newRow[updateColumn as keyof T] = updateValue;
+						validate(newRow, schema, tableName);
+					}
+
+					return newRow;
+				});
+
+			tables.set(tableName, updatedTable);
+			return updates;
+		};
+	}
+}
+
 export class SQLDBModule {
 	public static readonly ALL = {};
 	public static readonly PrimaryKey = { name: 'Primary Key' };
@@ -266,6 +322,7 @@ export class SQLDBModule {
 	public readonly select: <T extends SQLRow, S extends Partial<T>>(...keys: (keyof S | typeof SQLDBModule.ALL)[]) => Query<T, S>;
 	public readonly insert: <T extends SQLRow>() => Insertion<T>;
 	public readonly create: <T extends SQLRow>(tableName: string, schema: Schema<T>) => this;
+	public readonly update: <T extends SQLRow>(tableName: string) => Update<T>;
 	public readonly drop: (tableName: string) => this;
 	public readonly schema: <T extends SQLRow>(obj: Schema<T>) => Schema<T>;
 
@@ -279,6 +336,10 @@ export class SQLDBModule {
 
 		this.insert = () => {
 			return new Insertion(tables, schemas);
+		};
+
+		this.update = (tableName) => {
+			return new Update(tables, schemas, tableName);
 		};
 
 		this.create = <T extends SQLRow>(tableName: string, schema: Schema<T>) => {

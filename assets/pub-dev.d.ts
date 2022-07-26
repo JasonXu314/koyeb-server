@@ -1,6 +1,32 @@
+type ws = typeof import('ws');
+
+declare type EndpointResponse = {
+	status: number;
+	data: any;
+	headers?: Record<string, string>;
+};
+
 declare type Req<T> = {
 	query: Record<string, string>;
 	body: T;
+};
+
+declare type RESTEndpointHandlers<T> = Partial<{
+	get: (req: Req<T>) => EndpointResponse;
+	post: (req: Req<T>) => EndpointResponse;
+	put: (req: Req<T>) => EndpointResponse;
+	del: (req: Req<T>) => EndpointResponse;
+	patch: (req: Req<T>) => EndpointResponse;
+	setup: () => void;
+	cleanup: () => void;
+}>;
+
+declare type WSGatewayHandlers = {
+	setup?: () => void;
+	cleanup?: () => void;
+	onConnection?: (socket: ws['WebSocket']) => void;
+	onMessage: (socket: ws['WebSocket'], data: string) => void;
+	onDisconnect?: (socket: ws['WebSocket'], reason: string) => void;
 };
 
 declare type EndpointHandlers<T> = Partial<{
@@ -16,7 +42,7 @@ declare type EndpointHandlers<T> = Partial<{
 declare module 'db:nosql' {
 	type WithId<T> = T & { id: string };
 
-	declare class Collection<T> {
+	class Collection<T> {
 		public find(query: Partial<WithId<T>>): WithId<T>[];
 		public findOne(query: Partial<WithId<T>>): WithId<T> | null;
 		public insert(doc: WithId<T>): WithId<T>;
@@ -25,7 +51,7 @@ declare module 'db:nosql' {
 		public update(query: Partial<WithId<T>>, doc: Partial<WithId<T>>): WithId<T> | null;
 	}
 
-	export declare function collection<T>(name: string): Collection<T>;
+	export function collection<T>(name: string): Collection<T>;
 }
 
 declare module 'db:sql' {
@@ -42,7 +68,7 @@ declare module 'db:sql' {
 	};
 	type Predicate<T extends SQLRow = SQLRow> = (row: T) => boolean;
 
-	export declare class Query<T extends SQLRow, S extends Partial<T>> {
+	export class Query<T extends SQLRow, S extends Partial<T>> {
 		constructor(tables: Map<string, T[]>, schemas: Map<string, Schema<T>>, selection: (keyof S)[]);
 
 		public where(predicate: Predicate<T>): Query<T, S>;
@@ -64,7 +90,7 @@ declare module 'db:sql' {
 		public static like<T extends SQLRow, K extends keyof T>(key: K, value: string): Predicate<T>;
 	}
 
-	export declare class Insertion<T extends SQLRow> {
+	export class Insertion<T extends SQLRow> {
 		constructor(tables: Map<string, T[]>, schemas: Map<string, Schema<T>>);
 
 		public into(tableName: string): Insertion<T>;
@@ -73,21 +99,31 @@ declare module 'db:sql' {
 		public exec(): T;
 	}
 
-	export declare const ALL: object;
-	export declare const PrimaryKey: object;
+	export class Update<T extends SQLRow> {
+		constructor(tables: Map<string, T[]>, schemas: Map<string, Schema<T>>, tableName: string);
 
-	export declare function select<T extends SQLRow, S extends Partial<T>>(...keys: (keyof S)[]): Query<T, S>;
-	export declare function insert<T extends SQLRow>(): Insertion<T>;
-	export declare function create<T extends SQLRow>(tableName: string, schema: T): db;
-	export declare function drop(tableName: string): db;
+		public set<K extends string>(column: K, value: T[K]): Update<T>;
+		public where(predicate: Predicate<T>): Update<T>;
 
-	export declare function schema<T extends SQLRow>(obj: Schema<T>): Schema<T>;
+		public exec(): T[];
+	}
+
+	export const ALL: object;
+	export const PrimaryKey: object;
+
+	export function select<T extends SQLRow, S extends Partial<T>>(...keys: (keyof S)[]): Query<T, S>;
+	export function insert<T extends SQLRow>(): Insertion<T>;
+	export function update<T extends SQLRow>(tableName: string): Update<T>;
+	export function create<T extends SQLRow>(tableName: string, schema: T): db;
+	export function drop(tableName: string): db;
+
+	export function schema<T extends SQLRow>(obj: Schema<T>): Schema<T>;
 }
 
 declare module 'wss' {
 	type WebSocket = import('ws').WebSocket;
 
-	export declare function hasServer(): boolean;
-	export declare function broadcast(message: string): void;
-	export declare function clients(): WebSocket[];
+	export function hasServer(): boolean;
+	export function broadcast(message: string): void;
+	export function clients(): WebSocket[];
 }
